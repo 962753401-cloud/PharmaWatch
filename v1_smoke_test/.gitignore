@@ -1,0 +1,13 @@
+﻿# v1 烟雾测试运行产生的临时文件
+.env
+*.log
+*.err
+__pycache__/
+*.pyc
+run_uvicorn.bat
+run.log
+run.err
+server.log
+server.err
+uvicorn.log
+uvicorn.log.err

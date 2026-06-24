@@ -1,0 +1,11 @@
+﻿torch>=2.0.0
+silero-vad>=5.0
+pypinyin>=0.50.0
+websocket-client>=1.6.0
+openai>=1.0.0
+fastapi>=0.100.0
+uvicorn>=0.20.0
+python-multipart>=0.0.6
+python-dotenv>=1.0.0
+numpy>=1.24.0
+pydantic>=2.0.0

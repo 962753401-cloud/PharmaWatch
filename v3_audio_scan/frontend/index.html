@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>药店监控AI v3 音频敏感词盲扫</title>
+<script>window.lucide = { createIcons: function(){} };</script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer onerror="void(0)"></script>
+<style>
+:root{--bg:#f0f2f5;--surface:#fff;--border:#e0e4ea;--text:#1a1f2e;--muted:#6b7385;--primary:#2563eb;--primary-hover:#1d4ed8;--primary-soft:rgba(37,99,235,.08);--danger:#dc2626;--warning:#d97706;--warning-bg:#fef3c7;--success:#16a34a;--success-bg:#dcfce7;--info:#0891b2;--info-bg:#cffafe;--shadow:0 1px 3px rgba(0,0,0,.06),0 4px 12px rgba(0,0,0,.04);--radius:8px}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.55;min-height:100vh}
+header{padding:16px 28px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+header h1{font-size:17px;margin:0;font-weight:600}
+header .subtitle{color:var(--muted);font-size:12px}
+header .health{margin-left:auto;color:var(--muted);font-size:12px;display:flex;align-items:center;gap:6px}
+header .health .dot{width:8px;height:8px;border-radius:50%;background:#c8cdd6}
+header .health.ok .dot{background:var(--success)}
+header .health.err .dot{background:var(--danger)}
+main{display:grid;grid-template-columns:minmax(320px,400px) 1fr;gap:20px;padding:20px 28px 40px;max-width:1500px;margin:0 auto}
+@media(max-width:960px){main{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
+.card+.card{margin-top:14px}
+.card h2{margin:0 0 10px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.card h2 .lucide{color:var(--primary);width:15px;height:15px}
+.input-row{display:flex;gap:8px;align-items:flex-end}
+.input-row input[type=text]{flex:1;padding:9px 12px;border-radius:6px;border:1px solid var(--border);font-family:inherit;font-size:13px;background:var(--surface);color:var(--text)}
+.input-row input[type=text]:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft)}
+.dropzone{border:1.5px dashed var(--border);border-radius:var(--radius);padding:20px 14px;text-align:center;color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s}
+.dropzone:hover,.dropzone.drag{border-color:var(--primary);background:var(--primary-soft)}
+.dropzone .lucide{width:20px;height:20px;color:var(--primary)}
+.dropzone .filename{color:var(--text);font-weight:500;margin-top:5px;word-break:break-all;font-size:12px}
+.divider{text-align:center;color:var(--muted);font-size:11px;margin:12px 0;position:relative}
+.divider::before,.divider::after{content:"";position:absolute;top:50%;width:35%;height:1px;background:var(--border)}
+.divider::before{left:0}.divider::after{right:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:10px 16px;border-radius:6px;border:1px solid var(--primary);background:var(--primary);color:#fff;font-size:14px;font-weight:500;cursor:pointer;transition:background .15s,opacity .15s}
+.btn:hover:not(:disabled){background:var(--primary-hover)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn .spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hint{font-size:11px;color:var(--muted);margin-top:8px}
+.config-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-top:8px}
+.config-item{font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
+.config-item span:last-child{color:var(--text);font-weight:500}
+.progress-bar-outer{width:100%;height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:4px}
+.progress-bar-inner{height:100%;background:var(--primary);border-radius:4px;transition:width .3s ease;width:0%}
+.progress-stats{display:flex;gap:20px;margin-top:10px;font-size:12px;flex-wrap:wrap}
+.progress-stat{display:flex;flex-direction:column}
+.progress-stat .val{font-size:18px;font-weight:600;color:var(--text)}
+.progress-stat .lbl{font-size:11px;color:var(--muted)}
+.status-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:500}
+.status-badge.scanning{background:var(--primary-soft);color:var(--primary)}
+.status-badge.done{background:var(--success-bg);color:var(--success)}
+.status-badge.error{background:#fee2e2;color:var(--danger)}
+.status-badge.pending{background:var(--warning-bg);color:var(--warning)}
+.stage-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
+.stage-row:last-child{border-bottom:none}
+.stage-num{width:20px;height:20px;border-radius:50%;background:var(--border);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
+.stage-row.active .stage-num{background:var(--primary)}
+.stage-row.done-stage .stage-num{background:var(--success)}
+.vad-bar-outer{width:100%;height:6px;background:var(--bg);border-radius:3px;overflow:hidden;margin-top:3px}
+.vad-bar-inner{height:100%;background:var(--info);border-radius:3px;transition:width .3s}
+.transcript-box{background:#fafbfc;border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-top:8px;max-height:200px;overflow-y:auto;font-size:12px;line-height:1.7;color:var(--text)}
+.transcript-box .word-hit{background:var(--warning-bg);color:var(--warning);padding:1px 4px;border-radius:3px;font-weight:600}
+.transcript-box .ts{color:var(--muted);font-size:10px;margin-right:4px}
+.results{display:flex;flex-direction:column;gap:12px}
+.clip-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
+.clip-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.clip-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;color:#fff}
+.verdict-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600}
+.verdict-badge.suspect{background:var(--danger);color:#fff}
+.verdict-badge.compliant{background:var(--success-bg);color:var(--success)}
+.verdict-badge.pending{background:var(--warning-bg);color:var(--warning)}
+.verdict-badge.confirmed{background:var(--success);color:#fff}
+.verdict-badge.slang{background:var(--warning);color:#fff}
+.clip-time{font-size:13px;font-weight:600;color:var(--text)}
+.clip-details{font-size:12px;color:var(--muted)}
+.clip-duration{font-size:11px;color:var(--muted);margin-left:auto}
+.clip-video{width:100%;max-height:320px;border-radius:6px;background:#000;margin-top:4px}
+.clip-transcript{background:#fafbfc;border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-top:8px;font-size:12px;color:var(--text);line-height:1.6}
+.clip-actions{display:flex;gap:8px;margin-top:8px}
+.clip-actions a{font-size:12px;color:var(--primary);text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.clip-actions a:hover{text-decoration:underline}
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty-state .lucide{width:32px;height:32px;opacity:.3;margin-bottom:8px}
+.form-error{color:var(--danger);font-size:12px;margin-top:8px;min-height:16px}
+.events-panel{margin-bottom:12px}
+.events-list{max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:6px}
+.event-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--border);font-size:11px}
+.event-row:last-child{border-bottom:none}
+.event-row.new{animation:flash .8s}
+@keyframes flash{from{background:var(--warning-bg)}to{background:transparent}}
+.event-badge{padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;color:#fff;white-space:nowrap}
+.event-badge.demo_voice{background:#6b7385}
+.event-badge.s1{background:#dc2626}
+    .event-badge.sz{background:#0891b2}
+.event-time{font-weight:600;color:var(--text);white-space:nowrap}
+.event-kw{color:var(--warning);font-weight:600}
+.event-verdict{font-size:10px;font-weight:600;padding:1px 5px;border-radius:3px;white-space:nowrap}
+.event-verdict.suspect{background:#fee2e2;color:var(--danger)}
+.event-verdict.compliant{background:var(--success-bg);color:var(--success)}
+.event-verdict.confirmed{background:var(--success-bg);color:var(--success)}
+.event-verdict.slang{background:var(--warning-bg);color:var(--warning)}
+.hidden{display:none!important}
+.demo-tag{font-size:10px;color:var(--info);background:var(--info-bg);padding:2px 6px;border-radius:4px;margin-left:6px}
+</style>
+</head>
+<body>
+  <header>
+    <h1>药店监控AI v3 <span class="subtitle">音频敏感词盲扫触发（语音先行）</span></h1>
+    <div class="health" id="health"><span class="dot"></span><span id="health-text">检查中...</span></div>
+  </header>
+  <main>
+    <div class="left-col">
+      <div class="card">
+        <h2><i data-lucide="upload-cloud"></i> 输入视频</h2>
+        <div class="dropzone" id="dropzone">
+          <i data-lucide="file-video"></i>
+          <div>拖拽视频文件到这里，或点击选择</div>
+          <div class="filename" id="upload-filename"></div>
+        </div>
+        <input type="file" id="file-input" accept="video/*,audio/*" hidden />
+        <div class="divider">或输入本地绝对路径</div>
+        <div class="input-row">
+          <input type="text" id="path-input" placeholder="D:\path\to\video.mp4" />
+        </div>
+        <div class="form-error" id="form-error"></div>
+        <button class="btn" id="start-btn" disabled>
+          <i data-lucide="play" style="width:16px;height:16px;"></i><span>开始盲扫</span>
+        </button>
+        <div class="hint hidden">长视频音轨提取 → 5分钟分片 → Silero VAD 预筛 → Fun-ASR 转写 → 关键词+LLM 风控 → 视频切片</div>
+      </div>
+
+      <div class="card hidden" id="config-card">
+        <h2><i data-lucide="settings-2"></i> 管线配置</h2>
+        <div class="config-grid">
+          <div class="config-item"><span>分片时长</span><span id="cfg-chunk">-</span></div>
+          <div class="config-item"><span>VAD最小人声</span><span id="cfg-vad">-</span></div>
+          <div class="config-item"><span>切片半窗</span><span id="cfg-slice">-</span></div>
+          <div class="config-item"><span>切片上限</span><span id="cfg-max">-</span></div>
+          <div class="config-item"><span>ASR模型</span><span id="cfg-asr">-</span></div>
+          <div class="config-item"><span>风控模型</span><span id="cfg-llm">-</span></div>
+          <div class="config-item"><span>演示模式</span><span id="cfg-demo">-</span></div>
+          <div class="config-item"><span>词库类别</span><span id="cfg-cats">1</span></div>
+        </div>
+      </div>
+
+      <div class="card" id="pipeline-card" style="display:none;">
+        <h2><i data-lucide="activity"></i> 处理进度</h2>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <span class="status-badge scanning" id="status-badge">扫描中</span>
+          <span style="font-size:12px;color:var(--muted);" id="status-text">正在分析...</span>
+        </div>
+        <div class="stages" id="stages-container">
+          <div class="stage-pill hidden" id="stage-extract"><span class="stage-dot">1</span><span>提取音轨</span></div>
+          <div class="stage-pill hidden" id="stage-vad"><span class="stage-dot">2</span><span>VAD预筛</span></div>
+          <div class="stage-pill hidden" id="stage-asr"><span class="stage-dot">3</span><span>ASR转写</span></div>
+          <div class="stage-pill hidden" id="stage-risk"><span class="stage-dot">4</span><span>风控判定</span></div>
+        </div>
+        <div class="progress-bar-outer"><div class="progress-bar-inner" id="progress-bar"></div></div>
+        <div class="progress-stats">
+          <div class="progress-stat"><span class="val" id="stat-progress">0%</span><span class="lbl">总进度</span></div>
+          <div class="progress-stat"><span class="val" id="stat-time">00:00</span><span class="lbl">处理至</span></div>
+          <div class="progress-stat"><span class="val" id="stat-total">00:00</span><span class="lbl">总时长</span></div>
+         <div class="progress-stat"><span class="val" id="stat-triggers">0</span><span class="lbl">命中切片</span></div>
+          <div class="progress-stat"><span class="val" id="stat-chunks">0/0</span><span class="lbl">音频片段</span></div>
+       </div>
+        <div class="hint" id="stage-label" style="margin-top:8px;">等待开始...</div>
+        <div class="hint" id="current-chunk" style="margin-top:4px;"></div>
+        <div id="vad-info" style="margin-top:6px;">
+          <div class="hint" style="margin:0;">人声占比 <span id="vad-pct">-</span></div>
+          <div class="vad-bar-outer"><div class="vad-bar-inner" id="vad-bar-inner" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="right-col">
+      <div class="card" id="transcript-card" style="display:none;">
+        <h2><i data-lucide="audio-lines"></i> 实时转写<span id="transcript-demo-tag" class="demo-tag" style="display:none;">演示模式</span></h2>
+        <div class="hint" id="transcript-chunk-label" style="margin-bottom:4px;"></div>
+        <div class="transcript-box" id="transcript-box">
+          <span id="transcript-empty" style="color:var(--muted);">等待识别...</span>
+        </div>
+      </div>
+
+      <div class="card" id="results-card">
+        <h2><i data-lucide="scissors"></i> 命中切片</h2>
+        <div class="events-panel">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">触发事件</div>
+          <div class="events-list" id="events-list">
+            <div id="empty-events" style="text-align:center;padding:12px;color:var(--muted);font-size:12px;">等待检测...</div>
+          </div>
+        </div>
+        <div class="results" id="results-list">
+          <div class="empty-state" id="empty-state">
+            <i data-lucide="audio"></i>
+            <div>提交视频后，命中切片将显示在这里</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script>
+    let selectedFile = null;
+    let pollTimer = null;
+    let transcriptTimer = null;
+    let currentTaskId = null;
+    let lastEventCount = 0;
+
+    try { if (window.lucide && window.lucide.createIcons) lucide.createIcons(); } catch(e){}
+    checkHealth();
+
+    async function checkHealth() {
+      try {
+        const resp = await fetch("/api/health");
+        const data = await resp.json();
+        const el = document.getElementById("health");
+        const txt = document.getElementById("health-text");
+        if (data.status === "ok") {
+          el.classList.add("ok");
+          txt.textContent = data.demo_mode ? "服务就绪 (演示模式)" : "服务就绪";
+        } else {
+          el.classList.add("err");
+          txt.textContent = "服务未就绪";
+        }
+        if (data.asr_model) document.getElementById("cfg-asr").textContent = data.asr_model;
+        if (data.llm_model) document.getElementById("cfg-llm").textContent = data.llm_model;
+        if (data.chunk_seconds) document.getElementById("cfg-chunk").textContent = data.chunk_seconds + " 秒";
+        if (data.slice_half) document.getElementById("cfg-slice").textContent = data.slice_half + " 秒";
+        if (data.demo_mode !== undefined) document.getElementById("cfg-demo").textContent = data.demo_mode ? "开启" : "关闭";
+      } catch (e) {
+        document.getElementById("health").classList.add("err");
+        document.getElementById("health-text").textContent = "服务未启动";
+      }
+    }
+
+    const dropzone = document.getElementById("dropzone");
+    const fileInput = document.getElementById("file-input");
+    const pathInput = document.getElementById("path-input");
+    const startBtn = document.getElementById("start-btn");
+    const formError = document.getElementById("form-error");
+
+    dropzone.addEventListener("click", () => fileInput.click());
+    dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("drag"); });
+    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("drag"));
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("drag");
+      if (e.dataTransfer.files.length) handleFileSelect(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener("change", (e) => { if (e.target.files.length) handleFileSelect(e.target.files[0]); });
+
+    function handleFileSelect(file) {
+      selectedFile = file;
+      document.getElementById("upload-filename").textContent = file.name + " (" + (file.size / 1048576).toFixed(1) + "MB)";
+      pathInput.value = "";
+      updateStartBtn();
+    }
+
+    pathInput.addEventListener("input", () => {
+      if (pathInput.value.trim()) { selectedFile = null; document.getElementById("upload-filename").textContent = ""; }
+      updateStartBtn();
+    });
+
+    function updateStartBtn() { startBtn.disabled = !selectedFile && !pathInput.value.trim(); }
+
+    startBtn.addEventListener("click", async () => {
+      formError.textContent = "";
+      startBtn.disabled = true;
+      startBtn.innerHTML = '<span class="spinner"></span><span>提交中...</span>';
+      try {
+        let resp;
+        if (selectedFile) {
+          const formData = new FormData();
+          formData.append("video", selectedFile);
+          resp = await fetch("/api/analyze", { method: "POST", body: formData });
+        } else {
+          resp = await fetch("/api/analyze/path", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ video_path: pathInput.value.trim() }),
+          });
+        }
+        if (!resp.ok) {
+          let errMsg = "服务器错误 (HTTP " + resp.status + ")";
+          try { const e = await resp.json(); errMsg = e.message || e.error || errMsg; } catch(_){}
+          formError.textContent = errMsg; resetStartBtn(); return;
+        }
+        const data = await resp.json();
+        if (!data.ok && data.ok !== undefined) { formError.textContent = data.message || data.error || "提交失败"; resetStartBtn(); return; }
+        currentTaskId = data.task_id;
+        document.getElementById("pipeline-card").style.display = "";
+        document.getElementById("transcript-card").style.display = "";
+        document.getElementById("empty-state").classList.add("hidden");
+        startTranscriptPoll(data.task_id);
+        startPolling(data.task_id);
+      } catch (e) { formError.textContent = "网络错误: " + e.message; resetStartBtn(); }
+    });
+
+    function resetStartBtn() {
+      startBtn.disabled = false;
+      startBtn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i><span>开始盲扫</span>';
+      try { if (window.lucide && window.lucide.createIcons) lucide.createIcons(); } catch(e){}
+    }
+
+    function startPolling(taskId) {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTask(taskId);
+      pollTimer = setInterval(() => pollTask(taskId), 1500);
+    }
+
+    async function pollTask(taskId) {
+      try {
+        const resp = await fetch("/api/task/" + taskId);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        updatePipeline(data);
+        updateEvents(data);
+        updateResults(data);
+        if (data.status === "done" || data.status === "error") {
+          clearInterval(pollTimer); pollTimer = null;
+          stopTranscriptPoll();
+          resetStartBtn();
+          if (data.status === "error") document.getElementById("status-text").textContent = data.error || "扫描出错";
+        }
+      } catch (e) { console.error("Poll error:", e); }
+    }
+
+    function updatePipeline(data) {
+      const bar = document.getElementById("progress-bar");
+      bar.style.width = (data.progress || 0) + "%";
+      document.getElementById("stat-progress").textContent = (data.progress || 0).toFixed(1) + "%";
+      document.getElementById("stat-time").textContent = formatTime(data.current_time);
+      document.getElementById("stat-total").textContent = formatTime(data.total_time);
+      document.getElementById("stat-triggers").textContent = data.triggers_found || 0;
+      document.getElementById("stat-chunks").textContent = (data.speech_chunks || 0) + "/" + (data.total_chunks || 0);
+
+      const stages = ["extract", "vad", "asr", "risk"];
+      const stageMap = { extract: "音频处理", vad: "语音检测", asr: "语音识别", risk: "内容分析" };
+      const cur = data.stage || "extract";
+      let curIdx = stages.indexOf(cur);
+      if (curIdx < 0) { if (cur === "done") curIdx = stages.length; else curIdx = 0; }
+      stages.forEach((s, i) => {
+        const el = document.getElementById("stage-" + s);
+        if (!el) return;
+        el.classList.remove("active", "done");
+        if (i < curIdx) el.classList.add("done");
+        else if (i === curIdx) el.classList.add("active");
+      });
+      document.getElementById("stage-label").textContent = data.stage_label || stageMap[cur] || cur;
+
+      const chunkEl = document.getElementById("current-chunk");
+      if (chunkEl) {
+        if (data.current_chunk_start != null && data.total_chunks > 0) {
+          chunkEl.textContent = formatTime(data.current_chunk_start) + " - " + formatTime(data.current_chunk_end);
+        } else { chunkEl.textContent = "-"; }
+      }
+      const vadBar = document.getElementById("vad-bar-inner");
+      const vadTxt = document.getElementById("vad-pct");
+      if (vadBar && vadTxt) {
+        const chunkDur = (data.current_chunk_end || 0) - (data.current_chunk_start || 0);
+        let pct = 0;
+        if (chunkDur > 0) pct = Math.min(100, (data.vad_speech_sec || 0) / chunkDur * 100);
+        vadBar.style.width = pct.toFixed(1) + "%";
+        vadTxt.textContent = (data.vad_speech_sec || 0).toFixed(1) + "s 人声";
+      }
+
+      const badge = document.getElementById("status-badge");
+      const statusText = document.getElementById("status-text");
+      badge.className = "status-badge " + (data.status === "scanning" ? "scanning" : data.status);
+      if (data.status === "scanning") { badge.textContent = "处理中"; statusText.textContent = "正在分析..."; }
+      else if (data.status === "done") { badge.textContent = "完成"; statusText.textContent = "扫描完成"; }
+      else if (data.status === "error") { badge.textContent = "错误"; statusText.textContent = data.error || "扫描出错"; }
+      else { badge.textContent = "等待"; statusText.textContent = "等待开始..."; }
+    }
+
+    function startTranscriptPoll(taskId) {
+      if (transcriptTimer) clearInterval(transcriptTimer);
+      fetchTranscript(taskId);
+      transcriptTimer = setInterval(() => fetchTranscript(taskId), 800);
+    }
+    function stopTranscriptPoll() { if (transcriptTimer) { clearInterval(transcriptTimer); transcriptTimer = null; } }
+    async function fetchTranscript(taskId) {
+      try {
+        const resp = await fetch("/api/task/" + taskId + "/transcript");
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const box = document.getElementById("transcript-box");
+        const chunkLabel = document.getElementById("transcript-chunk-label");
+        const empty = document.getElementById("transcript-empty");
+        if (chunkLabel) chunkLabel.textContent = data.transcript_chunk || "";
+        if (data.transcript && data.transcript.trim()) {
+          if (empty) empty.style.display = "none";
+          box.innerHTML = escapeHtml(data.transcript);
+          box.scrollTop = box.scrollHeight;
+        } else {
+          if (empty) empty.style.display = "";
+          box.innerHTML = "";
+        }
+      } catch(e){}
+    }
+
+    function updateEvents(data) {
+      const events = data.events || [];
+      const list = document.getElementById("events-list");
+      const empty = document.getElementById("empty-events");
+      if (events.length === 0) { if (empty) empty.style.display = ""; return; }
+      if (empty) empty.style.display = "none";
+      if (events.length === lastEventCount) return;
+      const prevCount = lastEventCount;
+      lastEventCount = events.length;
+      list.innerHTML = "";
+      events.forEach(function(evt, i) {
+        const row = document.createElement("div");
+        row.className = "event-row" + (i >= prevCount ? " new" : "");
+        const time = document.createElement("span"); time.className = "event-time"; time.textContent = formatTime(evt.timestamp);
+        const badge = document.createElement("span"); badge.className = "event-badge"; badge.textContent = evt.violation_type || "-";
+        if (evt.source === "demo_voice") badge.classList.add("demo_voice");
+        else badge.classList.add("sz");
+        const kw = document.createElement("span"); kw.className = "event-kw"; kw.textContent = evt.keyword || "";
+        const verdict = document.createElement("span");
+        const evMap = {"确认": "confirmed", "暗语": "slang", "涉嫌": "suspect"};
+        verdict.className = "verdict-badge " + (evMap[evt.verdict] || "compliant");
+        verdict.textContent = evt.verdict || "待判";
+        row.appendChild(time); row.appendChild(badge); row.appendChild(kw); row.appendChild(verdict);
+        list.appendChild(row);
+      });
+      list.scrollTop = list.scrollHeight;
+    }
+
+    function updateResults(data) {
+      const list = document.getElementById("results-list");
+      const empty = document.getElementById("empty-state");
+      if (!data.clips || data.clips.length === 0) { if (empty) empty.style.display = ""; return; }
+      if (empty) empty.style.display = "none";
+      const existing = list.querySelectorAll(".clip-card");
+      if (existing.length === data.clips.length) return;
+      list.innerHTML = "";
+      data.clips.forEach((clip) => { list.appendChild(createClipCard(clip)); });
+      try { if (window.lucide && window.lucide.createIcons) lucide.createIcons(); } catch(e){}
+    }
+
+    function createClipCard(clip) {
+      const card = document.createElement("div");
+      card.className = "clip-card";
+      const ts = formatTime(clip.timestamp);
+      const cvMap = {"确认": "confirmed", "暗语": "slang", "涉嫌": "suspect"};
+      const vClass = cvMap[clip.verdict] || "compliant";
+      card.innerHTML =
+        '<div class="clip-header">' +
+          '<span class="clip-badge">' + escapeHtml(clip.violation_type || "") + '</span>' +
+          '<span class="clip-time">' + ts + '</span>' +
+          '<span class="clip-details">命中词: ' + escapeHtml(clip.keyword || "") + '</span>' +
+          '<span class="verdict-badge ' + vClass + '">' + (clip.verdict || "待判") + '</span>' +
+          '<span class="clip-duration">' + (clip.duration || 0).toFixed(0) + 's</span>' +
+        '</div>' +
+        '<div class="clip-transcript">' + escapeHtml(clip.transcript || "") + '</div>' +
+        (clip.reason ? '<div class="hint" style="margin-top:6px;">风控: ' + escapeHtml(clip.reason) + '</div>' : '') +
+        '<video class="clip-video" controls preload="metadata"><source src="' + clip.download_url + '" type="video/mp4" /></video>' +
+        '<div class="clip-actions">' +
+          '<a href="' + clip.download_url + '" download="' + clip.filename + '"><i data-lucide="download" style="width:14px;height:14px;"></i> 下载</a>' +
+          '<a href="' + clip.download_url + '" target="_blank"><i data-lucide="external-link" style="width:14px;height:14px;"></i> 新窗口</a>' +
+        '</div>';
+      return card;
+    }
+
+    function escapeHtml(s) {
+      if (!s) return "";
+      return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    function formatTime(seconds) {
+      if (!seconds || seconds < 0) return "00:00";
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = Math.floor(seconds % 60);
+      if (h > 0) return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+      return String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+    }
+  </script>
+</body>
+</html>

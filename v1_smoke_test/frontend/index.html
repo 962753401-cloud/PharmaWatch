@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>药店监控 AI · v1 烟雾测试</title>
+  <link rel="preconnect" href="https://unpkg.com" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      --border: #e3e8f0;
+      --text: #1d2433;
+      --muted: #6b7385;
+      --primary: #1f6feb;
+      --primary-hover: #1958c0;
+      --primary-soft: rgba(31, 111, 235, 0.08);
+      --danger: #d73a49;
+      --warning: #b88217;
+      --warning-bg: #fff8e1;
+      --success: #1f7a4d;
+      --success-bg: #e8f5ed;
+      --neutral-bg: #eef1f6;
+      --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.04);
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+    header {
+      padding: 20px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+    header .subtitle { color: var(--muted); font-size: 13px; }
+    header .health { margin-left: auto; color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    header .health .dot { width: 8px; height: 8px; border-radius: 50%; background: #c8cdd6; }
+    header .health.ok .dot { background: var(--success); }
+    header .health.warn .dot { background: var(--warning); }
+    header .health.err .dot { background: var(--danger); }
+    main { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; gap: 24px; padding: 24px 32px 40px; max-width: 1280px; margin: 0 auto; }
+    @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); }
+    .card + .card { margin-top: 16px; }
+    .card h2 { margin: 0 0 12px; font-size: 14px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
+    .card h2 .lucide { color: var(--primary); width: 16px; height: 16px; }
+    .label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .dropzone { border: 1.5px dashed var(--border); border-radius: var(--radius); padding: 22px 16px; text-align: center; color: var(--muted); cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+    .dropzone:hover, .dropzone.drag { border-color: var(--primary); background: var(--primary-soft); }
+    .dropzone .lucide { width: 22px; height: 22px; color: var(--primary); }
+    .dropzone .filename { color: var(--text); font-weight: 500; margin-top: 6px; word-break: break-all; }
+    .dropzone .meta { font-size: 12px; margin-top: 2px; }
+    video.preview { width: 100%; max-height: 220px; margin-top: 12px; border-radius: 6px; background: #000; }
+    textarea { width: 100%; min-height: 88px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); font-family: inherit; font-size: 14px; resize: vertical; background: var(--surface); color: var(--text); }
+    textarea:focus { outline: 2px solid var(--primary-soft); border-color: var(--primary); }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px 16px; border-radius: 6px; border: 1px solid var(--primary); background: var(--primary); color: #fff; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s, opacity 0.15s; }
+    .btn:hover:not(:disabled) { background: var(--primary-hover); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .form-error { color: var(--danger); font-size: 12px; margin-top: 8px; min-height: 16px; }
+    .results { display: flex; flex-direction: column; gap: 16px; }
+    .result-block h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 500; display: flex; align-items: center; gap: 6px; }
+    .result-block .body { font-size: 14px; white-space: pre-wrap; word-break: break-word; color: var(--text); line-height: 1.65; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; border: 1px solid transparent; }
+    .chip.none { background: var(--neutral-bg); color: var(--muted); }
+    .chip.suspect { background: var(--warning-bg); color: var(--warning); border-color: #f0d58c; }
+    .chip.violation { background: #fde7ea; color: var(--danger); border-color: #f5b9bf; }
+    ul.observations { margin: 0; padding-left: 18px; }
+    ul.observations li { margin: 4px 0; }
+    .stats { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 16px; }
+    .empty { color: var(--muted); font-size: 13px; padding: 24px 0; text-align: center; }
+    .error-banner { border: 1px solid #f5b9bf; background: #fde7ea; color: var(--danger); padding: 10px 12px; border-radius: 6px; font-size: 13px; }
+    .file-input { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>药店监控 AI</h1>
+    <span class="subtitle">v1 烟雾测试 · 视频智能分析</span>
+    <span id="health" class="health"><span class="dot"></span><span class="text">检查中…</span></span>
+  </header>
+  <main>
+    <section class="form-col">
+      <div class="card">
+        <h2><i data-lucide="upload-cloud"></i>上传监控视频</h2>
+        <label class="label">支持 MP4 / MOV / AVI，单文件不超过 <span id="size-limit">50</span>MB</label>
+        <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="选择或拖入视频文件">
+          <i data-lucide="film"></i>
+          <div class="filename" id="filename">点击或拖入视频文件</div>
+          <div class="meta" id="filemeta">尚未选择</div>
+        </div>
+        <input id="fileInput" class="file-input" type="file" accept="video/mp4,video/quicktime,video/x-msvideo,.mp4,.mov,.m4v,.avi" />
+        <video id="preview" class="preview" controls hidden></video>
+      </div>
+      <div class="card">
+        <h2><i data-lucide="message-square"></i>提问大模型</h2>
+        <label class="label" for="question">用户问题（可留空，留空时使用默认提示）</label>
+        <textarea id="question" placeholder="例如：画面里有几个人？他们在做什么？是否有递卡或现金动作？"></textarea>
+        <div class="hint">默认问题：请描述这段药店监控视频里发生了什么，并指出是否存在医保违规嫌疑。</div>
+      </div>
+      <div class="card">
+        <button id="submitBtn" class="btn" type="button">
+          <i data-lucide="play"></i>
+          <span id="btnLabel">开始分析</span>
+        </button>
+        <div id="formError" class="form-error" aria-live="polite"></div>
+      </div>
+    </section>
+    <section class="result-col">
+      <div class="card">
+        <h2><i data-lucide="sparkles"></i>分析结果</h2>
+        <div id="resultsBox" class="results">
+          <div class="empty">提交一个视频后，模型的解读会显示在这里。</div>
+        </div>
+      </div>
+    </section>
+  </main>  <script>
+    const MAX_MB_DEFAULT = 50;
+    const ALLOWED_EXT = ["mp4", "mov", "m4v", "avi"];
+    let MAX_MB = MAX_MB_DEFAULT;
+    let timerId = null;
+    let lastResultEl = null;
+
+    const fileInput = document.getElementById("fileInput");
+    const dropzone = document.getElementById("dropzone");
+    const filenameEl = document.getElementById("filename");
+    const filemetaEl = document.getElementById("filemeta");
+    const previewEl = document.getElementById("preview");
+    const questionEl = document.getElementById("question");
+    const submitBtn = document.getElementById("submitBtn");
+    const btnLabel = document.getElementById("btnLabel");
+    const formError = document.getElementById("formError");
+    const resultsBox = document.getElementById("resultsBox");
+    const sizeLimitEl = document.getElementById("size-limit");
+    const healthEl = document.getElementById("health");
+
+    function setHealth(state, text) {
+      healthEl.classList.remove("ok", "warn", "err");
+      if (state) healthEl.classList.add(state);
+      healthEl.querySelector(".text").textContent = text;
+    }
+
+    async function loadHealth() {
+      try {
+        const r = await fetch("/api/health");
+        const j = await r.json();
+        if (j.max_video_mb) {
+          MAX_MB = j.max_video_mb;
+          sizeLimitEl.textContent = j.max_video_mb;
+        }
+        if (j.has_api_key === false) {
+          setHealth("err", "未配置 API Key");
+        } else {
+          setHealth("ok", "后端就绪");
+        }
+      } catch (err) {
+        setHealth("err", "后端不可用");
+      }
+    }
+
+    function validateFile(file) {
+      if (!file) return "请先选择一个视频文件。";
+      const ext = (file.name.split(".").pop() || "").toLowerCase();
+      const okType = (file.type || "").startsWith("video/") || ALLOWED_EXT.includes(ext);
+      if (!okType) return "仅支持 MP4 / MOV / AVI 等视频格式。";
+      const sizeMb = file.size / (1024 * 1024);
+      if (sizeMb > MAX_MB) {
+        return `视频体积 ${sizeMb.toFixed(1)}MB，超过上限 ${MAX_MB}MB。`;
+      }
+      if (file.size === 0) return "选中的文件为空。";
+      return null;
+    }
+
+    function setFile(file) {
+      formError.textContent = "";
+      const err = validateFile(file);
+      if (err) {
+        formError.textContent = err;
+        fileInput.value = "";
+        previewEl.hidden = true;
+        previewEl.removeAttribute("src");
+        filenameEl.textContent = "点击或拖入视频文件";
+        filemetaEl.textContent = "尚未选择";
+        return;
+      }
+      filenameEl.textContent = file.name;
+      filemetaEl.textContent = `${(file.size / (1024 * 1024)).toFixed(2)} MB · ${file.type || "video/*"}`;
+      const url = URL.createObjectURL(file);
+      previewEl.src = url;
+      previewEl.hidden = false;
+    }
+
+    dropzone.addEventListener("click", () => fileInput.click());
+    dropzone.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        fileInput.click();
+      }
+    });
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (file) setFile(file);
+    });
+    ["dragenter", "dragover"].forEach((ev) => {
+      dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.add("drag"); });
+    });
+    ["dragleave", "drop"].forEach((ev) => {
+      dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.remove("drag"); });
+    });
+    dropzone.addEventListener("drop", (e) => {
+      const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+        setFile(file);
+      }
+    });
+
+    function escapeHtml(text) {
+      return String(text == null ? "" : text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;");
+    }
+
+    function riskLabel(r) {
+      if (r === "violation") return "明显违规迹象";
+      if (r === "suspect") return "存在疑点需复核";
+      return "无明显风险";
+    }
+
+    function renderError(code, message) {
+      const html = `<div class="error-banner"><strong>${escapeHtml(code || "error")}</strong> · ${escapeHtml(message || "调用失败")}</div>`;
+      if (lastResultEl) {
+        resultsBox.innerHTML = "";
+        resultsBox.insertAdjacentHTML("afterbegin", html);
+        resultsBox.appendChild(lastResultEl);
+      } else {
+        resultsBox.innerHTML = html + '<div class="empty">尚无成功结果，请修复后重试。</div>';
+      }
+    }
+
+    function renderResult(data) {
+      const risk = data.risk_hint || "none";
+      const tokens = data.tokens || {};
+      const observations = Array.isArray(data.raw_observations) ? data.raw_observations : [];
+      const obsHtml = observations.length
+        ? `<ul class="observations">${observations.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>`
+        : '<div class="body" style="color:var(--muted)">模型未给出帧级线索。</div>';
+      const sceneHtml = data.scene_summary
+        ? `<div class="body">${escapeHtml(data.scene_summary)}</div>`
+        : '<div class="body" style="color:var(--muted)">模型未给出场景说明。</div>';
+      const answerHtml = data.answer
+        ? `<div class="body">${escapeHtml(data.answer)}</div>`
+        : '<div class="body" style="color:var(--muted)">模型未直接回答问题。</div>';
+
+      const html = `
+        <div class="result-block">
+          <h3>风险提示</h3>
+          <span class="chip ${risk}">${escapeHtml(riskLabel(risk))}</span>
+        </div>
+        <div class="result-block">
+          <h3>场景说明</h3>
+          ${sceneHtml}
+        </div>
+        <div class="result-block">
+          <h3>问题回答</h3>
+          ${answerHtml}
+        </div>
+        <div class="result-block">
+          <h3>原始观察</h3>
+          ${obsHtml}
+        </div>
+        <div class="stats">
+          <span>耗时：${data.elapsed_ms != null ? data.elapsed_ms + " ms" : "—"}</span>
+          <span>tokens：prompt ${tokens.prompt ?? "—"} / completion ${tokens.completion ?? "—"} / total ${tokens.total ?? "—"}</span>
+        </div>
+      `;
+      const wrapper = document.createElement("div");
+      wrapper.className = "results";
+      wrapper.innerHTML = html;
+      resultsBox.innerHTML = "";
+      resultsBox.appendChild(wrapper);
+      lastResultEl = wrapper;
+    }
+
+    function setLoading(on) {
+      submitBtn.disabled = on;
+      if (on) {
+        btnLabel.textContent = "分析中…";
+        const icon = submitBtn.querySelector("i, .spinner");
+        if (icon) icon.remove();
+        const sp = document.createElement("span");
+        sp.className = "spinner";
+        submitBtn.prepend(sp);
+        const t0 = performance.now();
+        timerId = setInterval(() => {
+          const sec = ((performance.now() - t0) / 1000).toFixed(1);
+          btnLabel.textContent = `分析中… ${sec}s`;
+        }, 200);
+      } else {
+        if (timerId) { clearInterval(timerId); timerId = null; }
+        btnLabel.textContent = "开始分析";
+        const sp = submitBtn.querySelector(".spinner");
+        if (sp) sp.remove();
+        if (!submitBtn.querySelector("i")) {
+          const icon = document.createElement("i");
+          icon.setAttribute("data-lucide", "play");
+          submitBtn.prepend(icon);
+          if (window.lucide) window.lucide.createIcons();
+        }
+      }
+    }
+
+    submitBtn.addEventListener("click", async () => {
+      formError.textContent = "";
+      const file = fileInput.files && fileInput.files[0];
+      const err = validateFile(file);
+      if (err) { formError.textContent = err; return; }
+      const form = new FormData();
+      form.append("video", file);
+      form.append("question", questionEl.value || "");
+      setLoading(true);
+      try {
+        const r = await fetch("/api/analyze", { method: "POST", body: form });
+        const j = await r.json().catch(() => ({}));
+        if (r.ok && j && j.ok) {
+          renderResult(j);
+        } else {
+          const code = j.error_code || `http_${r.status}`;
+          const message = j.message || "调用失败";
+          renderError(code, message);
+        }
+      } catch (e) {
+        renderError("network_error", e && e.message ? e.message : "网络异常");
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    loadHealth();
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.lucide) window.lucide.createIcons();
+    });
+  </script>
+</body>
+</html>

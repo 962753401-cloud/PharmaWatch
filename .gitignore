@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# Environment & secrets
+.env
+
+# Runtime outputs
+*.log
+*.wav
+*.pkl
+
+# Generated media (keep dirs, ignore contents)
+v1_smoke_test/backend/uploads/
+v2_behavior_detect/backend/clips/
+v2_behavior_detect/backend/frames/
+v2_behavior_detect/backend/uploads/
+v3_audio_scan/backend/clips/
+v3_audio_scan/backend/uploads/
+v3_audio_scan/backend/work/
+
+# OS files
+.DS_Store
+Thumbs.db
